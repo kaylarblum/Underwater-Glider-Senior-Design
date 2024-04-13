@@ -1,0 +1,75 @@
+// Linear Actuator Testing
+
+// Pins from actuator to arduino
+const int Extend = 6;
+const int Retract = 5;    
+
+void setup()
+{
+  Serial.begin(115200);
+  pinMode(Extend, OUTPUT);
+  pinMode(Retract, OUTPUT);
+
+  Serial.println("Initializing...");
+  delay(2000);
+
+}
+
+void retract()
+{
+  digitalWrite(Retract, HIGH);
+  digitalWrite(Extend, LOW);
+}
+
+void extend()
+{
+  digitalWrite(Extend, HIGH);
+  digitalWrite(Retract, LOW);
+}
+
+void stop()
+{
+  digitalWrite(Extend, HIGH);
+  digitalWrite(Retract, HIGH);
+}
+
+void loop()
+{
+  // 3 minute set up to put together glider before getting in water
+
+  // Complete retraction
+  Serial.println("Initial retraction");
+  retract();
+  delay(90000);   // retract for 90 seconds
+
+  // Complete extension
+  Serial.println("Initial extension");
+  extend();
+  delay(90000);  // extend for 90 seconds
+
+  // Once in water
+  while (true)
+  {
+    // retraction
+    Serial.println("Starting retraction");
+    retract();
+    delay(14500); // retract for 14.5 seconds
+  
+  
+    // Sinking time
+    Serial.println("Retraction complete... sinking");
+    stop();
+    delay(20000);   // extend for 20 seconds
+
+    // extension
+    Serial.println("Starting extension");
+    extend();
+    delay(14500); // extend for 14.5 seconds
+
+    // Floating time
+    Serial.println("Extension complete... floating");
+    stop();
+    delay(20000);   // extend for 20 seconds
+  }
+ 
+}
