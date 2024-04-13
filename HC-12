@@ -1,0 +1,23 @@
+// HC-12 Sender
+#include <SoftwareSerial.h>
+
+SoftwareSerial HC12(2, 3);        // HC-12 TX Pin, HC-12 RX Pin
+
+void setup() {
+  Serial.begin(9600);             // Serial port to computer
+  HC12.begin(9600);               // Serial port to HC12
+  pinMode(4, OUTPUT);             // SET wire pin
+  digitalWrite(4, LOW);           // Allows AT commands to be accessed
+  delay(100);
+
+
+}
+
+void loop() {
+  while (HC12.available()) {        // If HC-12 has data
+    Serial.write(HC12.read());      // Send the data to Serial monitor
+  }
+  while (Serial.available()) {      // If Serial monitor has data
+    HC12.write(Serial.read());      // Send that data to HC-12
+  }
+}
