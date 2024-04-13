@@ -1,0 +1,49 @@
+// Linear Actuator Testing
+
+// Pins from actuator to arduino
+const int Extend = 6;
+const int Retract = 5;    
+
+void setup()
+{
+  Serial.begin(115200);
+  pinMode(Extend, OUTPUT);
+  pinMode(Retract, OUTPUT);
+
+  Serial.println("Initializing...")
+}
+
+// Subfunction to retract actuator
+void retract()
+{
+  digitalWrite(Retract, HIGH);
+  digitalWrite(Extend, LOW);
+}
+
+// Subsystem to extend actuator
+void extend()
+{
+  digitalWrite(Extend, HIGH);
+  digitalWrite(Retract, LOW);
+}
+
+// Subsystem to stop actuator movement
+void stop()
+{
+  digitalWrite(Extend, HIGH);
+  digitalWrite(Retract, HIGH);
+}
+
+void loop()
+{
+  // Complete retraction
+  Serial.println("Initial retraction");
+  retract();
+
+  // Stop Actuator
+  stop();
+
+  // Complete extension
+  Serial.println("Initial extension");
+  extend();
+}
