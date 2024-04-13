@@ -1,0 +1,28 @@
+// Pressure Sensor Testing
+
+// Variables
+float pressure;                       // sensor pressure
+float voltage;                        // sensor voltage
+const float offset = 0.483;           // sensor offtset value from specs sheet
+
+void setup()
+{
+  Serial.begin(9600);
+}
+
+void loop()
+{
+  voltage = analogRead(0) * 5.00 / 1024;
+  pressure = (voltage - offset) * 400;
+
+  // Obtain data 
+  pressure = (analogRead(0) - 102) * 350
+
+  // Print Data
+  Serial.print("\nPressure (psi): ");
+  Serial.println("\tVoltage: ");
+  Serial.print(pressure);
+  Serial.print("\t\t\t");
+  Serial.print(voltage);
+  delay(1000);
+}
