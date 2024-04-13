@@ -1,0 +1,147 @@
+// Underwater LiDAR and Linear Actuator Test
+#include <SoftwareSerial.h>
+#include "TFMini.h"
+
+TFMini tfmini;
+
+// Set up pins
+SoftwareSerial SerialTFMini(10, 11);          // RX, TX to Arduino pins 10 and 11
+const int Extend = 5;                         // Pin from actuator to arduino
+const int Retract = 6;                       // Pin from actuator to arduino
+
+
+// Subfunction for obtaining sensor distance/strength/temperature
+void getTFminiData(int* distance, int* strength, int* temperature)  
+{
+  static char i = 0;
+  char j = 0;
+  int checksum = 0;
+  static int rx[9];
+
+  if (SerialTFMini.available())
+  {
+    rx[i] = SerialTFMini.read();
+    if (rx[0] != 0x59)
+    {
+      i = 0;
+    }
+    else if (i == 1 && rx[1] != 0x59)
+    {
+      i = 0;
+    }
+    else if (i == 8)
+    {
+      for (j = 0; j < 8; j++)
+      {
+        checksum += rx[j];
+      }
+      if (rx[8] == (checksum % 256))
+      {
+        *distance = rx[2] + rx[3] * 256;  // mm
+        *strength = rx[4] + rx[5] * 256;  // 0-65536 
+        *temperature = rx[6] + rx[7] * 256;
+      }
+      i = 0;
+    }
+    else
+    {
+      i++;
+    }
+  }
+}
+
+// Subfunction for retraction
+void retraction()
+{
+  digitalWrite(Retract, HIGH);
+  digitalWrite(Extend, LOW);
+  Serial.print("\nRetraction complete...beginning delay");
+  
+}
+
+// Subfunction for extension
+void extension()
+{
+  digitalWrite(Retract, LOW);
+  digitalWrite(Extend, HIGH);
+}
+
+
+ void setup()  
+{
+  Serial.begin(115200);                   //Initialize hardware serial port (serial debug port)
+  while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
+  Serial.println("Initializing...");
+  SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
+  tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
+  
+  // Delay after sensor initialization
+  delay(1000);  
+}
+
+
+// Main function
+void loop()
+{
+  // Variables
+  int distance = 0;                               // sensor distance to object
+  int strength = 0;                               // sensor strength
+  int temperature = 0;                            // sensor temperature
+  const int objectDist = 30;                      // 1 foot
+
+
+  while (!distance)
+  {
+    // Call getTFminiData function and return values
+    getTFminiData(&distance, &strength, &temperature);
+  
+    // Distance is obtained aka sensor is working
+    if (distance)                               
+    {
+
+      // Convert temp to C
+      temperature = (temperature/8) - 256;
+
+      // Convert distance to underwater distance
+      distance = distance * 0.7525;   
+     
+
+      // State distance from obstacle, laser strength, and chip temperature
+      Serial.print("\n\nDistance (cm): ");
+      Serial.print("\t\tLaser strength: ");
+      Serial.println("\tChip Temperature (C): ");
+      Serial.print(distance);
+      Serial.print("\t\t\t");
+      Serial.print(strength);
+      Serial.print("\t\t\t");
+      Serial.print(temperature);
+    
+      // Object is greater than 1 foot away
+      if (distance > objectDist)
+      {
+        // State motion plan
+        Serial.print("\nNo obstacles detected... initiating downwards motion");
+
+        // motion
+        retraction();
+      }
+
+      // Object is less than 1 foot away
+      else if (distance < objectDist)
+      {
+        // State motion plan
+        Serial.print("\nObstacles detected...initiating upwards motion");
+
+        extension();
+      }
+
+      else
+      {
+        Serial.print("\nError...");
+      }
+      
+    }
+
+  }
+
+}
