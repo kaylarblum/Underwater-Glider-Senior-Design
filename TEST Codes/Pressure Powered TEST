@@ -1,0 +1,112 @@
+// Underwater Pressure Sensor and Linear Actuator Test
+#include <SoftwareSerial.h>
+
+const int Extend = 6;                         // Pin from actuator to arduino
+const int Retract = 5;                        // Pin from actuator to arduino
+
+
+// Subfunction for retraction
+void retraction()
+{
+  digitalWrite(Retract, HIGH);
+  digitalWrite(Extend, LOW);
+  Serial.print("\nRetraction complete...beginning delay");
+  
+}
+
+// Subfunction for extension
+void extension()
+{
+  digitalWrite(Retract, LOW);
+  digitalWrite(Extend, HIGH);
+}
+
+// Subfunction to stop actuator
+void stop()
+{
+  digitalWrite(Retract, HIGH);
+  digitalWrite(Extend, HIGH);
+}
+
+ void setup()  
+{
+  Serial.begin(9600);                   //Initialize hardware serial port (serial debug port)
+  while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
+  Serial.println("Initializing...");
+}
+
+
+// Main function
+void loop()
+{
+  // Variables
+  double pressureValue = 0;                        // sensor pressure
+  double voltage;
+
+
+  while (!pressureValue)
+  {
+    // Obtain Pressure in analog form
+    voltage = analogRead(A0) * 5.00 / 1024;
+    pressureValue = (voltage - 0.483) * 400;
+
+
+    // Distance is obtained aka sensor is working
+    if (pressureValue)                               
+    {
+      Serial.print("Water Pressure (psi): ");
+      Serial.println(pressureValue);
+
+      extend();       // push out all air
+      delay(40000);   // let syringe fully push out
+
+      stop();         // stop actuator movement
+      delay(20000);   // 2 seconds of stopped movement
+
+      // Underwater pressure is less than 4.3 psi
+      if (pressureValue < 4.3)
+      {
+        // State motion plan
+        Serial.print("\nNo obstacles detected... initiating downwards motion");
+
+        // motion
+        retraction();   // pull in water
+        delay(14500);   // retract for 14.5 seconds
+
+        // stop
+        stop();         // stop actuator movement
+        delay(20000);   // 20 seconds to let sink
+
+      }
+
+      // Presusre is greater than 4.3 psi
+      else if (pressureValue > 4.3)
+      {
+        // State motion plan
+        Serial.print("\nObstacles detected...initiating upwards motion");
+
+        // motion
+        extension();    // push out water
+        delay(14500);   // 14.5 seconds
+
+        // stop
+        stop();         // stop actuator movement
+        delay(20000);   // 20 seconds to float
+      }
+
+      else
+      {
+        Serial.print("\nError...");
+      }
+      
+    }
+    
+    else
+    {
+      Serial.println("Pressure sensor not working");
+    }
+
+  }
+
+
+}
