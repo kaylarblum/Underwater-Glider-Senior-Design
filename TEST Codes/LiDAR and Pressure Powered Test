@@ -1,0 +1,185 @@
+// Complete Prototype Testing Code
+#include <SoftwareSerial.h>
+#include "TFMini.h"
+
+TFMini tfmini;
+
+// Set up pins
+SoftwareSerial SerialTFMini(10, 11);          // RX, TX to Arduino pins 10 and 11
+const int Extend = 5;                         // Pin from actuator to arduino
+const int Retract = 6;                        // Pin from actuator to arduino
+
+// Subfunction for obtaining sensor distance/strength/temperature
+void getTFminiData(int* distance, int* strength, int* temperature)  
+{
+  static char i = 0;
+  char j = 0;
+  int checksum = 0;
+  static int rx[9];
+
+  if (SerialTFMini.available())
+  {
+    rx[i] = SerialTFMini.read();
+    if (rx[0] != 0x59)
+    {
+      i = 0;
+    }
+    else if (i == 1 && rx[1] != 0x59)
+    {
+      i = 0;
+    }
+    else if (i == 8)
+    {
+      for (j = 0; j < 8; j++)
+      {
+        checksum += rx[j];
+      }
+      if (rx[8] == (checksum % 256))
+      {
+        *distance = rx[2] + rx[3] * 256;  // mm
+        *strength = rx[4] + rx[5] * 256;  // 0-65536 
+        *temperature = rx[6] + rx[7] * 256;
+      }
+      i = 0;
+    }
+    else
+    {
+      i++;
+    }
+  }
+}
+
+// Subfunction for water pressure
+void getPressureData(float* pressureValue)
+{
+  // Variables
+  const int pressureInput = A0;                 // analog input pin on Arduino
+
+  pressureValue = 0;
+  
+  // Obtain Pressure in analog form
+  pressureValue = analogRead(pressureInput);
+
+}
+
+
+// Subfunction for retraction
+void retraction()
+{
+  digitalWrite(Retract, LOW);
+  digitalWrite(Extend, HIGH);
+  Serial.print("\nRetraction complete...beginning delay");
+  
+}
+
+// Subfunction for extension
+void extension()
+{
+  digitalWrite(Retract, HIGH);
+  digitalWrite(Extend, LOW);
+}
+
+ void setup()  
+{
+  Serial.begin(115200);                   //Initialize hardware serial port (serial debug port)
+  while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
+  Serial.println("Initializing...");
+  SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
+  tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
+  pinMode(Retract, OUTPUT);
+  pinMode(Extend, OUTPUT);
+  
+
+  // Delay after sensor initialization
+  delay(1000);  
+}
+
+
+// Main function
+void loop()
+{
+  // Variables
+  int distance = 0;                             // sensor distance to object
+  int strength = 0;                             // sensor strength
+  int temperature = 0;                          // sensor chip temperature
+  const int objectDist = 30;                    // 1 foot
+  const float pressureZero = 102.4;             // analog reading at 0 psi; x = (0.5V/5V) * 1024
+  const float pressureMax = 921.6;              // analog reading at max psi; x = (4.5V/5V) * 1024
+  const float pressureTransducerMaxPSI = 174.045; // max psi; 1.2 mpa to psi
+  float pressureValue = 0;                        // sensor pressure
+
+  while (!distance)
+  {
+    // Call getTFminiData function and return values
+    getTFminiData(&distance, &strength, &temperature);
+    getPressureData(&pressureValue);
+
+    // Distance is obtained aka sensor is working
+    if (distance)                               
+    {
+
+      // Convert temp to C
+      temperature = (temperature/8) - 256;
+
+      // Convert distance to underwater distance
+      distance = distance * 0.7525;        
+
+      // Convert analog to PSI
+      pressureValue = ((pressureValue-pressureZero) * pressureTransducerMaxPSI)/(pressureMax-pressureZero);
+
+      // State distance from obstacle, laser strength, chip temperature, and water pressure
+      Serial.print("\nDistance (cm): ");
+      Serial.print("\t\tLaser strength: ");
+      Serial.print("\tChip Temperature (C): ");
+      Serial.println("\t\tWater Pressure (psi): ");
+      Serial.print(distance);
+      Serial.print("\t\t\t");
+      Serial.print(strength);
+      Serial.print("\t\t\t");
+      Serial.print(temperature);
+      Serial.print("\t\t\t");
+      Serial.println(pressureValue);
+
+
+      // Object is greater than 1 foot away and glider is near surface
+      if (distance > objectDist && pressureValue < 5)
+      {
+        // State motion plan
+        Serial.print("Water Pressure: ");
+        Serial.print(pressureValue);
+        Serial.print("\t indicates glider has not reached bottom");
+        Serial.print("\nNo obstacles detected... initiating downwards motion");
+
+        // Downwards motion
+        retraction();
+      }
+
+      // Object is greater than 1 foot away and glider is near bottom
+      else if (distance >= objectDist && pressureValue >= 5)
+      {
+        // State motion plan
+        Serial.print("Water Pressure: ");
+        Serial.print(pressureValue);
+        Serial.print("\t indicates glider has reached bottom");
+        Serial.print("\nNo obstacles detected...initiating upwards motion");
+
+        extension();
+      }
+
+      // Error
+      else
+      {
+        Serial.print("Error... pressure data not obtained");
+        return;
+      }
+  
+    }
+
+    else
+    {
+      Serial.print("Error... LiDAR data not obtained");
+      return;
+    }
+  }
+
+}
